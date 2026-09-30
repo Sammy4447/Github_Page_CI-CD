@@ -83,7 +83,7 @@ export default function HomePage() {
 
       <section id="deals" className="section deals">
         <div>
-          <h2>Flash Deal ( add here something )of the Week</h2>
+          <h2>Flash Deal ( add here something means anythhing text )of the Week</h2>
           <p>
             Save up to 40% on selected gaming laptops, wireless earbuds and smart displays. Limited stock
             available.
