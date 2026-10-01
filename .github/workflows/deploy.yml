@@ -23,7 +23,10 @@ concurrency:
 # Jobs: the independent units of work in this workflow.
 # Each job runs on its own fresh runner (VM) unless it "needs" another job.
 jobs:
-  # Job 1: build - installs, builds, then tests (same order as GitHub's official Node.js template).
+  # Pipeline: build -> test -> deploy
+  # Each job is a gate: the next one only starts if the previous one is green (via "needs").
+
+  # Job 1: build - builds the static site and saves it as an Artifact.
   build:
     runs-on: ubuntu-latest
     steps:
@@ -46,20 +49,39 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Step: run the Jest test suite (npm test) - fails the job if any test fails
-      - name: Run tests
-        run: npm test
-
       # Step: package the ./out folder as an Artifact so the deploy job can use it
-      # (only reached if build and tests both passed)
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./out
 
-  # Job 2: deploy - only runs if "build" job succeeds (needs: build)
-  deploy:
+  # Job 2: test - gate 1, only runs if "build" is green (needs: build)
+  test:
     needs: build
+    runs-on: ubuntu-latest
+    steps:
+      # Step: pull the repo's code onto the runner
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Step: install Node.js on the runner (with npm cache for speed)
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # Step: clean install of the exact versions in package-lock.json
+      - name: Install dependencies
+        run: npm ci
+
+      # Step: run the Jest test suite (npm test) - fails the job if any test fails
+      - name: Run tests
+        run: npm test
+
+  # Job 3: deploy - gate 2, only runs if both "build" and "test" are green
+  deploy:
+    needs: [build, test]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
