@@ -23,32 +23,8 @@ concurrency:
 # Jobs: the independent units of work in this workflow.
 # Each job runs on its own fresh runner (VM) unless it "needs" another job.
 jobs:
-  # Job 1: test - runs the test suite before anything gets built/deployed.
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      # Step: pull the repo's code onto the runner
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # Step: install Node.js on the runner (with npm cache for speed)
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      # Step: install all npm dependencies
-      - name: Install dependencies
-        run: npm install
-
-      # Step: run the Jest test suite (npm test) - fails the job if any test fails
-      - name: Run tests
-        run: npm test
-
-  # Job 2: build - only runs if "test" job succeeds (needs: test)
+  # Job 1: build - installs, builds, then tests (same order as GitHub's official Node.js template).
   build:
-    needs: test
     runs-on: ubuntu-latest
     steps:
       # Step: pull the repo's code onto the runner
@@ -62,21 +38,26 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      # Step: install all npm dependencies
+      # Step: clean install of the exact versions in package-lock.json
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       # Step: build the Next.js app into static files (outputs to ./out)
       - name: Build
         run: npm run build
 
+      # Step: run the Jest test suite (npm test) - fails the job if any test fails
+      - name: Run tests
+        run: npm test
+
       # Step: package the ./out folder as an Artifact so the deploy job can use it
+      # (only reached if build and tests both passed)
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./out
 
-  # Job 3: deploy - only runs if "build" job succeeds (needs: build)
+  # Job 2: deploy - only runs if "build" job succeeds (needs: build)
   deploy:
     needs: build
     runs-on: ubuntu-latest
